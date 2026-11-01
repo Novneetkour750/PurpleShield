@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from pathlib import Path
@@ -98,6 +98,15 @@ def init_db():
         CREATE TABLE IF NOT EXISTS findings(id INTEGER PRIMARY KEY, target TEXT, port INTEGER, service TEXT, severity TEXT, description TEXT, status TEXT DEFAULT 'Open', created_at TEXT);
         CREATE TABLE IF NOT EXISTS validations(id INTEGER PRIMARY KEY, scenario TEXT, expected TEXT, observed TEXT, result TEXT, technique_id TEXT, created_at TEXT);
         CREATE TABLE IF NOT EXISTS audit_log(id INTEGER PRIMARY KEY, username TEXT, action TEXT, details TEXT, created_at TEXT);
+        CREATE TABLE IF NOT EXISTS assessment_history (
+    id INTEGER PRIMARY KEY,
+    username TEXT NOT NULL,
+    target TEXT NOT NULL,
+    ports_checked TEXT NOT NULL,
+    results TEXT NOT NULL,
+    open_count INTEGER NOT NULL,
+    created_at TEXT NOT NULL
+);
         CREATE TABLE IF NOT EXISTS incident_detections(incident_id INTEGER NOT NULL REFERENCES incidents(id) ON DELETE CASCADE, detection_id INTEGER NOT NULL REFERENCES detections(id) ON DELETE CASCADE, created_at TEXT NOT NULL, PRIMARY KEY(incident_id,detection_id));
         CREATE TABLE IF NOT EXISTS incident_findings(incident_id INTEGER NOT NULL REFERENCES incidents(id) ON DELETE CASCADE, finding_id INTEGER NOT NULL REFERENCES findings(id) ON DELETE CASCADE, created_at TEXT NOT NULL, PRIMARY KEY(incident_id,finding_id));
         ''')
@@ -321,8 +330,45 @@ def assess_local(body:LabBody, authorization: str|None=Header(default=None)):
                       service=excluded.service, severity=excluded.severity,
                       description=excluded.description, created_at=excluded.created_at''',
                     (str(ip),port,service,'Info',f'Open TCP port detected by local connect check.{hint_text} Review whether this service is required.','Open',now()))
+    # Save exactly ONE assessment-history record for this scan. This runs once,
+    # after the port loop, so it is saved whether ports were open or closed.
+    open_count=sum(1 for item in results if item['state']=='open')
+    try:
+        with db() as c:
+            scan_id=c.execute('''INSERT INTO assessment_history
+                (username,target,ports_checked,results,open_count,created_at)
+                VALUES(?,?,?,?,?,?)''',
+                (u['username'],str(ip),json.dumps(body.ports),json.dumps(results),open_count,now())).lastrowid
+    except sqlite3.Error:
+        raise HTTPException(500,'The scan finished but its assessment history could not be saved. Please try again.')
     audit(u['username'],'local_port_assessment',str(body.ports))
-    return {'target':str(ip),'results':results,'note':'Loopback-only TCP connect checks. No exploit attempts or external network traffic.'}
+    return {'scan_id':scan_id,'target':str(ip),'results':results,'note':'Loopback-only TCP connect checks. No exploit attempts or external network traffic.'}
+
+def _load_json_list(text):
+    try:
+        value=json.loads(text)
+        return value if isinstance(value,list) else []
+    except (TypeError, ValueError):
+        return []
+
+@app.get('/api/red/assessment-history')
+def assessment_history(limit: int = Query(default=100, ge=1, le=500), authorization: str|None=Header(default=None)):
+    u=current_user(authorization); require(u,'admin','red_operator')
+    try:
+        with db() as c: rows=c.execute('SELECT * FROM assessment_history ORDER BY created_at DESC, id DESC LIMIT ?',(limit,)).fetchall()
+    except sqlite3.Error:
+        raise HTTPException(500,'Assessment history could not be read from the database.')
+    history=[]
+    for row in rows:
+        results=_load_json_list(row['results'])
+        ports_checked=_load_json_list(row['ports_checked'])
+        open_ports=[r.get('port') for r in results if isinstance(r,dict) and r.get('state')=='open']
+        closed_ports=[r.get('port') for r in results if isinstance(r,dict) and r.get('state')=='closed']
+        history.append({'scan_id':row['id'],'username':row['username'],'target':row['target'],'ports_checked':ports_checked,
+                        'results':results,'total_ports':len(ports_checked),'open_count':row['open_count'],
+                        'closed_count':len(closed_ports),'open_ports':open_ports,'closed_ports':closed_ports,
+                        'created_at':row['created_at']})
+    return history
 
 @app.get('/api/red/findings')
 def findings(authorization: str|None=Header(default=None)):
