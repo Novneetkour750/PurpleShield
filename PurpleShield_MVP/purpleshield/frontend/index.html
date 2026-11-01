@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b0d14" />
+  <title>PurpleShield · Security Operations</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
+
+  <section id="login-panel" class="login-screen">
+    <div class="login-visual">
+      <div class="brand brand-large"><span class="brand-mark">P</span><span class="brand-name">Purple<span>Shield</span></span></div>
+      <p class="eyebrow">LOCAL SECURITY OPERATIONS</p>
+      <h1>See the signal.<br /><span>Strengthen the response.</span></h1>
+      <p class="login-copy">A connected workspace for local assessment, security monitoring and validation.</p>
+      <div class="login-assurance"><span class="status-dot"></span> Loopback assessment boundary active</div>
+    </div>
+    <div class="login-side">
+      <form id="login-form" class="login-card">
+        <div class="eyebrow">WELCOME BACK</div>
+        <h2>Sign in to PurpleShield</h2>
+        <p class="muted">Use your local workspace credentials to continue.</p>
+        <label for="username">Username</label>
+        <input id="username" name="username" autocomplete="username" required maxlength="80" placeholder="Enter username" />
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="256" placeholder="Enter password" />
+        <button class="button button-primary button-wide" type="submit"><span>Sign in</span><span aria-hidden="true">→</span></button>
+        <p id="login-error" class="inline-error" role="alert"></p>
+        <p class="login-hint">Local demo account: <b>admin</b> · use the configured demo password</p>
+      </form>
+      <div class="login-footer">PURPLESHIELD <span>·</span> LOCAL-FIRST SECURITY VALIDATION</div>
+    </div>
+  </section>
+
+  <div id="app" class="app-shell" hidden>
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-top">
+        <a class="brand" href="#overview" data-route="overview" aria-label="PurpleShield overview">
+          <span class="brand-mark">P</span><span class="brand-name">Purple<span>Shield</span></span>
+        </a>
+        <button id="sidebar-toggle" class="icon-button sidebar-toggle" aria-label="Collapse sidebar" title="Collapse sidebar"><span aria-hidden="true">‹</span></button>
+      </div>
+      <div class="workspace-label"><span class="status-dot"></span><span>LOCAL LAB WORKSPACE</span></div>
+      <nav id="primary-nav" class="primary-nav" aria-label="Main navigation">
+        <div class="nav-group-label">WORKSPACE</div>
+        <button class="nav-item" data-page="overview"><span class="nav-icon" data-icon="grid"></span><span class="nav-label">Overview</span></button>
+        <button class="nav-item" data-page="dashboard"><span class="nav-icon" data-icon="chart"></span><span class="nav-label">Security Dashboard</span></button>
+        <div class="nav-group-label">TEAM OPERATIONS</div>
+        <button class="nav-item" data-page="red"><span class="nav-icon" data-icon="target"></span><span class="nav-label">Red Team</span></button>
+        <button class="nav-item" data-page="blue"><span class="nav-icon" data-icon="shield"></span><span class="nav-label">Blue Team</span></button>
+        <button class="nav-item" data-page="purple"><span class="nav-icon" data-icon="layers"></span><span class="nav-label">Purple Team</span></button>
+        <div class="nav-group-label">REVIEW & RECORDS</div>
+        <button class="nav-item" data-page="findings"><span class="nav-icon" data-icon="flag"></span><span class="nav-label">Findings</span><span id="nav-open-findings" class="nav-count">0</span></button>
+        <button class="nav-item" data-page="incidents"><span class="nav-icon" data-icon="alert"></span><span class="nav-label">Incidents</span></button>
+        <button class="nav-item" data-page="validations"><span class="nav-icon" data-icon="check"></span><span class="nav-label">Validation History</span></button>
+        <button class="nav-item" data-page="audit"><span class="nav-icon" data-icon="list"></span><span class="nav-label">Audit Logs</span></button>
+        <div class="nav-group-label">PREFERENCES</div>
+        <button class="nav-item" data-page="settings"><span class="nav-icon" data-icon="settings"></span><span class="nav-label">Settings</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="boundary-card"><span class="boundary-icon">⌁</span><div class="boundary-copy"><b>Loopback only</b><small>External targets blocked</small></div><span class="boundary-check">✓</span></div>
+        <div class="sidebar-version">PURPLESHIELD <span>·</span> MVP</div>
+      </div>
+    </aside>
+
+    <main class="main-shell">
+      <header class="topbar">
+        <div class="topbar-title"><button id="mobile-menu" class="icon-button mobile-menu" aria-label="Open navigation">☰</button><div><div class="eyebrow top-eyebrow">SECURITY OPERATIONS CENTER</div><h1 id="page-title">Overview</h1></div></div>
+        <div class="topbar-actions">
+          <label class="global-search"><span class="search-icon" aria-hidden="true">⌕</span><input id="global-search" type="search" placeholder="Search findings, events, incidents…" aria-label="Search current view" /><kbd>Ctrl K</kbd></label>
+          <button id="notification-button" class="icon-button notification-button" aria-label="View open findings" title="Open findings"><span data-icon="bell"></span><i id="notification-dot" class="notification-dot" hidden></i></button>
+          <span class="topbar-divider"></span>
+          <div class="profile-chip"><span class="avatar" id="profile-initial">P</span><span class="profile-text"><b id="profile-name">Analyst</b><small id="profile-role">Role</small></span><span class="profile-caret">⌄</span></div>
+          <button id="logout" class="icon-button logout-button" aria-label="Log out" title="Log out"><span data-icon="logout"></span></button>
+        </div>
+      </header>
+
+      <div id="page-error" class="page-error" role="alert" hidden></div>
+      <div id="loading-state" class="loading-state" hidden><span class="spinner"></span> Loading workspace data…</div>
+
+      <div id="page-content" class="page-content">
+        <section id="page-overview" class="page-view" data-view="overview">
+          <div class="welcome-row"><div><div class="eyebrow">PURPLE TEAM WORKSPACE</div><h2>Security operations, connected.</h2><p class="muted">Track localhost findings, coordinate response and validate remediation from one workspace.</p></div><button class="button button-secondary" data-go="dashboard"><span data-icon="chart"></span> Open security dashboard <span aria-hidden="true">→</span></button></div>
+          <div class="overview-status-grid">
+            <article class="panel status-panel"><div class="panel-heading"><div><div class="eyebrow">WORKSPACE STATUS</div><h3>Current posture</h3></div><span class="live-pill"><i></i> LIVE DATA</span></div><div class="overview-stat-grid" id="overview-stats"></div></article>
+            <article class="panel workflow-panel"><div class="eyebrow">CONNECTED WORKFLOW</div><h3>From assessment to validation</h3><div class="workflow-steps"><button class="workflow-step" data-go="red"><span class="step-icon red-step">01</span><span><b>Red Team</b><small>Assess authorized localhost ports</small></span><span class="step-arrow">→</span></button><button class="workflow-step" data-go="blue"><span class="step-icon blue-step">02</span><span><b>Blue Team</b><small>Review findings and manage response</small></span><span class="step-arrow">→</span></button><button class="workflow-step" data-go="purple"><span class="step-icon purple-step">03</span><span><b>Purple Team</b><small>Retest findings and record outcomes</small></span><span class="step-arrow">→</span></button></div></article>
+          </div>
+          <div class="overview-bottom-grid"><article class="panel"><div class="panel-heading"><div><div class="eyebrow">RECENT SIGNAL</div><h3>Latest security activity</h3></div><button class="text-button" data-go="dashboard">View dashboard →</button></div><div id="overview-activity" class="activity-list"></div></article><article class="safety-panel"><div class="safety-emblem"><span data-icon="shield"></span></div><div class="eyebrow">SAFETY BOUNDARY</div><h3>Local lab mode</h3><p>Red Team checks accept only <b>127.0.0.1</b> or <b>::1</b>. PurpleShield performs basic TCP connect checks only; it does not exploit services or scan external systems.</p><div class="safety-status"><span class="status-dot"></span> LOOPBACK ASSESSMENT ENABLED</div></article></div>
+        </section>
+
+        <section id="page-dashboard" class="page-view" data-view="dashboard" hidden>
+          <div class="page-intro"><div><div class="eyebrow">LIVE WORKSPACE METRICS</div><h2>Security dashboard</h2><p class="muted">Counts and activity are loaded from the current PurpleShield database.</p></div><div class="intro-actions"><span id="dashboard-updated" class="last-updated">Waiting for data</span><button id="refresh-button" class="button button-quiet"><span data-icon="refresh"></span> Refresh</button><button id="seed-button" class="button button-primary" hidden><span>＋</span> Load demo events</button></div></div>
+          <div id="metric-grid" class="metric-grid"></div>
+          <div class="analytics-grid">
+            <article class="panel analytics-panel"><div class="panel-heading"><div><div class="eyebrow">REMEDIATION LIFECYCLE</div><h3>Findings by status</h3></div><span class="panel-count" id="finding-status-total">0 findings</span></div><div class="status-chart-layout"><div id="finding-status-chart" class="status-donut" role="img" aria-label="Finding status distribution"></div><div id="finding-status-legend" class="status-legend"></div></div></article>
+            <article class="panel analytics-panel"><div class="panel-heading"><div><div class="eyebrow">BLUE TEAM TELEMETRY</div><h3>Security event types</h3></div><span class="panel-count" id="event-type-total">0 events</span></div><div id="event-type-chart" class="event-type-chart"></div></article>
+          </div>
+          <div class="dashboard-grid dashboard-grid-main"><article class="panel severity-panel"><div class="panel-heading"><div><div class="eyebrow">FINDINGS</div><h3>Findings by severity</h3></div><button class="text-button" data-go="findings">All findings →</button></div><div id="severity-chart" class="severity-chart"></div></article><article class="panel activity-panel"><div class="panel-heading"><div><div class="eyebrow">RECENT SIGNAL</div><h3>Security activity</h3></div><span class="panel-count" id="activity-count">0 events</span></div><div id="dashboard-activity" class="activity-list activity-list-tall"></div></article></div>
+          <div class="dashboard-grid dashboard-grid-three"><article class="panel summary-panel"><div class="panel-heading"><div><div class="eyebrow">RED TEAM</div><h3>Assessment summary</h3></div><span class="summary-icon red-step" data-icon="target"></span></div><div id="red-summary"></div><button class="panel-link" data-go="red">Open assessment <span>→</span></button></article><article class="panel summary-panel"><div class="panel-heading"><div><div class="eyebrow">BLUE TEAM</div><h3>Detection summary</h3></div><span class="summary-icon blue-step" data-icon="shield"></span></div><div id="blue-summary"></div><button class="panel-link" data-go="blue">Review monitoring <span>→</span></button></article><article class="panel summary-panel"><div class="panel-heading"><div><div class="eyebrow">PURPLE TEAM</div><h3>Validation summary</h3></div><span class="summary-icon purple-step" data-icon="layers"></span></div><div id="purple-summary"></div><button class="panel-link" data-go="purple">Validate remediation <span>→</span></button></article></div>
+          <article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">REVIEW QUEUE</div><h3>Recent findings</h3></div><button class="text-button" data-go="findings">View all →</button></div><div id="dashboard-findings" class="table-wrap"></div></article>
+          <article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">PURPLE TEAM</div><h3>Recent validation history</h3></div><button class="text-button" data-go="validations">View history →</button></div><div id="dashboard-validations" class="table-wrap"></div></article>
+          <article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">ACTIVE RESPONSE</div><h3>Incident overview</h3></div><button class="text-button" data-go="incidents">View incidents →</button></div><div id="dashboard-incidents" class="table-wrap"></div></article>
+        </section>
+
+        <section id="page-red" class="page-view" data-view="red" hidden>
+          <div class="page-intro"><div><div class="eyebrow">AUTHORIZED ASSESSMENT</div><h2>Red Team</h2><p class="muted">Check TCP ports on this computer only. No exploit attempts or external network traffic.</p></div><span class="boundary-badge"><span class="status-dot"></span> LOOPBACK ONLY</span></div>
+          <div class="red-layout"><div class="red-main-column"><article class="panel assessment-panel"><div class="panel-heading"><div><div class="eyebrow">LOCAL PORT ASSESSMENT</div><h3>Start an assessment</h3></div><span class="assessment-protocol">TCP CONNECT</span></div><form id="scan-form" class="assessment-form"><label for="scan-target">Target IP</label><input id="scan-target" value="127.0.0.1" required maxlength="45" autocomplete="off" /><small class="field-help">Only 127.0.0.1 and ::1 are accepted by the backend.</small><label for="ports">Ports <span class="label-note">comma separated, up to 20</span></label><input id="ports" value="22,80,443,5000,5500,8000" required autocomplete="off" /><small class="field-help">Valid range: 1–65535. Keep the list to ports you are authorized to check.</small><button id="scan-button" class="button button-primary" type="submit"><span data-icon="target"></span> Start localhost assessment</button><p id="scan-result" class="form-feedback" aria-live="polite"></p></form></article><article class="panel"><div class="panel-heading"><div><div class="eyebrow">LATEST REQUEST</div><h3>Assessment results</h3></div><span id="scan-result-count" class="panel-count">No assessment yet</span></div><div id="scan-results-table" class="table-wrap"><div class="empty-state compact-empty"><span class="empty-icon">⌁</span><b>No assessment in this session</b><small>Start a localhost assessment to see open and closed TCP results here.</small></div></div></article></div><div class="red-side-column"><article class="red-boundary-card"><span class="boundary-shield" data-icon="shield"></span><div class="eyebrow">ASSESSMENT BOUNDARY</div><h3>Safe by design</h3><p>Targets are validated as loopback IP addresses before any TCP connect check runs.</p><div class="boundary-row"><span>Allowed targets</span><b>127.0.0.1 · ::1</b></div><div class="boundary-row"><span>Assessment type</span><b>TCP connect only</b></div></article><article class="panel mini-summary"><div class="eyebrow">PERSISTED FINDINGS</div><div id="red-finding-total" class="mini-number">—</div><p class="muted">Open-port findings currently saved in SQLite.</p><button class="panel-link" data-go="findings">Review findings <span>→</span></button></article><article class="panel limitation-panel"><div class="eyebrow">ASSESSMENT HISTORY</div><h3>Not persisted by this API</h3><p>The backend returns each assessment result but does not expose a stored assessment-history endpoint. This panel shows only the latest request in this browser session.</p></article></div></div>
+          <article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">REVIEW QUEUE</div><h3>Saved Red Team findings</h3></div><button class="text-button" data-go="findings">Manage findings →</button></div><div id="red-findings-table" class="table-wrap"></div></article>
+        </section>
+
+        <section id="page-blue" class="page-view" data-view="blue" hidden>
+          <div class="page-intro"><div><div class="eyebrow">DETECTION & RESPONSE</div><h2>Blue Team</h2><p class="muted">Monitor security events, detections, incidents and incoming Red Team findings.</p></div><button id="blue-seed-button" class="button button-secondary" hidden>＋ Load synthetic events</button></div>
+          <div id="blue-mini-stats" class="mini-metric-grid"></div>
+          <article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">REMEDIATION QUEUE</div><h3>Security findings</h3></div><span class="panel-count">Review and update status</span></div><div id="blue-findings-table" class="table-wrap"></div></article>
+          <div class="dashboard-grid dashboard-grid-two"><article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">DETECTION ENGINE</div><h3>Security detections</h3></div></div><div id="blue-detections-table" class="table-wrap"></div></article><article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">ACTIVE RESPONSE</div><h3>Incidents</h3></div><button class="text-button" data-go="incidents">Details →</button></div><div id="blue-incidents-table" class="table-wrap"></div></article></div>
+          <article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">EVENT STREAM</div><h3>Recent security events</h3></div><span class="panel-count">Latest 100</span></div><div id="blue-events-table" class="table-wrap"></div></article>
+        </section>
+
+        <section id="page-purple" class="page-view" data-view="purple" hidden>
+          <div class="page-intro"><div><div class="eyebrow">DETECTION VALIDATION</div><h2>Purple Team</h2><p class="muted">Retest a saved localhost finding or run the existing synthetic repeated-login check.</p></div></div>
+          <div class="purple-layout"><article class="panel retest-panel"><div class="panel-heading"><div><div class="eyebrow">REMEDIATION RETEST</div><h3>Validate a finding</h3></div><span class="summary-icon purple-step" data-icon="layers"></span></div><form id="finding-validation-form" class="retest-form"><label for="finding-to-validate">Select a finding</label><select id="finding-to-validate" required><option value="">Loading findings…</option></select><p class="field-help">PASS means the target port is closed. FAIL means it is still open. Retesting never changes finding status.</p><button id="retest-button" class="button button-primary" type="submit"><span data-icon="check"></span> Validate remediation</button></form><div id="finding-validation-result" class="validation-result-slot"></div></article><article class="synthetic-card"><div class="eyebrow">TABLETOP VALIDATION</div><h3>Repeated-login detection</h3><p>Check whether Blue Team has recorded the synthetic repeated failed-login detection mapped to ATT&amp;CK T1110.</p><div class="synthetic-meta"><span>Technique</span><b>T1110 · Brute Force</b></div><button id="validate" class="button button-light">Run synthetic validation <span>→</span></button><div id="validation-result" class="synthetic-result-slot"></div></article></div>
+          <article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">VALIDATION RECORDS</div><h3>Recent validation history</h3></div><button class="text-button" data-go="validations">Full history →</button></div><div id="purple-validations-table" class="table-wrap"></div></article>
+        </section>
+
+        <section id="page-findings" class="page-view" data-view="findings" hidden>
+          <div class="page-intro"><div><div class="eyebrow">REVIEW & REMEDIATION</div><h2>Security findings</h2><p class="muted">Open-port findings saved from authorized Red Team localhost assessments.</p></div><div class="intro-actions"><span id="findings-total" class="last-updated">0 findings</span><button class="button button-quiet" data-go="red"><span data-icon="target"></span> New assessment</button></div></div>
+          <article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">FINDINGS REGISTER</div><h3>All persisted findings</h3></div><label class="table-filter"><span>⌕</span><input id="findings-filter" type="search" placeholder="Filter findings…" aria-label="Filter findings" /></label></div><div id="findings-table" class="table-wrap"></div></article>
+        </section>
+
+        <section id="page-incidents" class="page-view" data-view="incidents" hidden>
+          <div class="page-intro"><div><div class="eyebrow">ACTIVE RESPONSE</div><h2>Incident management</h2><p class="muted">Review synthetic and generated incidents with their related records.</p></div></div>
+          <div id="incident-stats" class="mini-metric-grid"></div>
+          <article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">RESPONSE REGISTER</div><h3>Incidents</h3></div></div><div id="incidents-table" class="table-wrap"></div></article>
+          <div class="info-note"><span>i</span><p>Incident-to-detection and incident-to-finding links are shown when present. Link management is available through the backend API; this UI does not yet provide a link editor.</p></div>
+        </section>
+
+        <section id="page-validations" class="page-view" data-view="validations" hidden>
+          <div class="page-intro"><div><div class="eyebrow">PURPLE TEAM RECORDS</div><h2>Validation history</h2><p class="muted">Persisted remediation retests and synthetic detection validations.</p></div><button class="button button-secondary" data-go="purple"><span data-icon="layers"></span> Run validation</button></div>
+          <div id="validation-stats" class="mini-metric-grid"></div>
+          <article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">AUDITABLE OUTCOMES</div><h3>All validation records</h3></div><label class="table-filter"><span>⌕</span><input id="validations-filter" type="search" placeholder="Filter validations…" aria-label="Filter validations" /></label></div><div id="validations-table" class="table-wrap"></div></article>
+        </section>
+
+        <section id="page-audit" class="page-view" data-view="audit" hidden>
+          <div class="page-intro"><div><div class="eyebrow">ADMINISTRATIVE RECORDS</div><h2>Audit logs</h2><p class="muted">Recent authenticated actions recorded by the backend.</p></div><span class="permission-badge">ADMIN ACCESS</span></div>
+          <div class="info-note"><span>i</span><p>The backend exposes the latest 100 audit records to Admin accounts only.</p></div>
+          <article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">ACTIVITY RECORD</div><h3>Recent audit events</h3></div><label class="table-filter"><span>⌕</span><input id="audit-filter" type="search" placeholder="Filter audit logs…" aria-label="Filter audit logs" /></label></div><div id="audit-table" class="table-wrap"></div></article>
+        </section>
+
+        <section id="page-settings" class="page-view" data-view="settings" hidden>
+          <div class="page-intro"><div><div class="eyebrow">WORKSPACE PREFERENCES</div><h2>Settings</h2><p class="muted">Account and session details available from the current API.</p></div></div>
+          <div class="settings-grid"><article class="panel settings-profile"><div class="eyebrow">CURRENT ACCOUNT</div><div class="settings-user"><span id="settings-avatar" class="avatar avatar-large">P</span><div><h3 id="settings-username">—</h3><span id="settings-role" class="role-badge">—</span></div></div><div class="settings-row"><span>Authentication</span><b>Bearer session</b></div><div class="settings-row"><span>Session lifetime</span><b>8 hours · in-memory</b></div><div class="settings-row"><span>Workspace mode</span><b>Local lab</b></div><button class="button button-quiet" id="settings-logout"><span data-icon="logout"></span> Log out of this session</button></article><article class="panel settings-limits"><div class="eyebrow">AVAILABLE CONTROLS</div><h3>Backend capabilities</h3><div class="capability-row"><span class="capability-check">✓</span><span><b>Loopback-only TCP assessment</b><small>127.0.0.1 and ::1</small></span></div><div class="capability-row"><span class="capability-check">✓</span><span><b>Role-based access control</b><small id="settings-permission-summary">Current role permissions apply</small></span></div><div class="capability-row unavailable"><span class="capability-dash">—</span><span><b>User management</b><small>No user administration API is available.</small></span></div><div class="capability-row unavailable"><span class="capability-dash">—</span><span><b>Persistent assessment history</b><small>No stored assessment-history endpoint is available.</small></span></div></article></div>
+        </section>
+      </div>
+      <footer class="app-footer"><span>PURPLESHIELD</span><i>·</i> LOCAL-FIRST SECURITY VALIDATION <span class="footer-right">Loopback assessment only</span></footer>
+    </main>
+  </div>
+  <script src="app.js"></script>
+  <script src="auth-extras-v2.js"></script>
+</body>
+</html>
