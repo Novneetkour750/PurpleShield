@@ -3,6 +3,7 @@ const $ = (id) => document.getElementById(id);
 const state = {
   token: localStorage.getItem('ps_token') || '', user: null, role: '', page: 'overview', search: '',
   dashboard: null, findings: [], events: [], detections: [], incidents: [], validations: [], audit: [], latestScan: null,
+  assessmentHistory: [], historyError: '',
 };
 
 const icons = {
@@ -66,6 +67,7 @@ function showPageError(message) {
 }
 function clearSession(message='') {
   state.token=''; state.user=null; state.role=''; localStorage.removeItem('ps_token');
+  state.assessmentHistory=[]; state.historyError='';
   $('app').hidden=true; $('login-panel').hidden=false;
   $('login-error').textContent=message;
 }
@@ -107,6 +109,19 @@ async function authenticate(username, password) {
   setAuthenticated(data);
 }
 
+// Red Team Assessment History (admin and red_operator only; the API enforces this too).
+// Never rejects: a history problem is shown inside the history section and must not
+// break the rest of the workspace refresh.
+function canViewAssessmentHistory() { return ['admin','red_operator'].includes(state.role); }
+async function loadAssessmentHistory() {
+  if (!state.token || !canViewAssessmentHistory()) { state.assessmentHistory=[]; state.historyError=''; return; }
+  try {
+    const rows=await req('/red/assessment-history');
+    state.assessmentHistory=Array.isArray(rows) ? rows : [];
+    state.historyError='';
+  } catch(error) { state.historyError=error.message; }
+}
+
 async function refreshData() {
   if (!state.token) return;
   $('loading-state').hidden=false; showPageError('');
@@ -125,6 +140,8 @@ async function refreshData() {
   else state.validations=[];
   if (role==='admin') tasks.push(req('/audit').then(data=>state.audit=data));
   else state.audit=[];
+  if (canViewAssessmentHistory()) tasks.push(loadAssessmentHistory());
+  else { state.assessmentHistory=[]; state.historyError=''; }
   try {
     await Promise.all(tasks);
     renderAll();
@@ -142,6 +159,8 @@ function navigate(page) {
   $('page-title').textContent=pageTitles[page] || 'PurpleShield';
   document.body.classList.remove('sidebar-open');
   renderAll();
+  // Opening the Red Team page always fetches the latest saved assessment history.
+  if (page==='red' && canViewAssessmentHistory()) loadAssessmentHistory().then(renderRedHistory);
 }
 function goTo(page) { navigate(page); }
 function filtered(rows, fields) {
@@ -283,7 +302,61 @@ function renderRed() {
     {key:'status',label:'Finding status',render:v=>v==='—' ? v : badge(v)},
   ],'No results','No port results were returned.') : `<div class="empty-state compact-empty"><span class="empty-icon">⌁</span><b>No assessment in this session</b><small>Start a localhost assessment to see open and closed TCP results here.</small></div>`;
   $('red-findings-table').innerHTML=findingsTable(filtered(state.findings,['target','port','service','severity','description','status']),false,false);
+  renderRedHistory();
 }
+
+// Assessment History section on the Red Team page. If the page markup has no
+// #red-history-table container, one is created once, below the existing Red Team
+// content, reusing the panel/table classes already used by the findings table.
+function ensureRedHistoryContainer() {
+  const existing=$('red-history-table');
+  if (existing) return existing;
+  const anchor=$('red-findings-table');
+  if (!anchor) return null;
+  const view=anchor.closest('.page-view') || anchor.parentElement;
+  const panel=anchor.closest('[class*="panel"],[class*="card"]');
+  const section=document.createElement('section');
+  section.id='red-history-section';
+  if (panel && panel!==view && view.contains(panel)) section.className=panel.className;
+  section.style.marginTop='18px';
+  section.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px"><h3 style="margin:0">Assessment History</h3><small id="red-history-count">Loading…</small></div><div id="red-history-table" class="${esc(anchor.className)}" style="overflow-x:auto"></div>`;
+  view.appendChild(section);
+  return $('red-history-table');
+}
+function dateTimeSeconds(value) {
+  if (!value) return '—';
+  const date=new Date(value);
+  return Number.isNaN(date.getTime()) ? esc(value) : date.toLocaleString([], {dateStyle:'medium',timeStyle:'medium'});
+}
+function portPills(ports) {
+  return Array.isArray(ports) && ports.length ? ports.map(port=>`<span class="relation-pill">${esc(port)}</span>`).join(' ') : '<span class="muted-cell">None</span>';
+}
+function historyDetails(results) {
+  if (!Array.isArray(results) || !results.length) return '<span class="muted-cell">No details</span>';
+  const rows=results.map(item=>`<div class="summary-line"><span>Port ${esc(item?.port)}</span>${badge(item?.state)}</div>`).join('');
+  return `<details><summary>View ${results.length} results</summary>${rows}</details>`;
+}
+function renderRedHistory() {
+  if (!canViewAssessmentHistory()) return;
+  const box=ensureRedHistoryContainer();
+  if (!box) return;
+  const rows=filtered(state.assessmentHistory,['target','username','ports_checked','created_at']);
+  const count=$('red-history-count');
+  if (count) count.textContent=`${rows.length} ${rows.length===1 ? 'scan' : 'scans'}`;
+  if (state.historyError) { box.innerHTML=`<div class="inline-error">${esc(state.historyError)}</div>`; return; }
+  box.innerHTML=table(rows,[
+    {key:'scan_id',label:'Scan',render:v=>`#${esc(v)}`},
+    {key:'created_at',label:'Scan date & time',render:v=>dateTimeSeconds(v)},
+    {key:'target',label:'Target IP'},
+    {key:'ports_checked',label:'Ports checked',render:v=>portPills(v)},
+    {key:'total_ports',label:'Total ports'},
+    {key:'open_ports',label:'Open ports',render:(v,r)=>`<b>${esc(r.open_count)}</b> ${portPills(v)}`},
+    {key:'closed_ports',label:'Closed ports',render:(v,r)=>`<b>${esc(r.closed_count)}</b> ${portPills(v)}`},
+    {key:'username',label:'Username'},
+    {key:'results',label:'Scan details',render:v=>historyDetails(v)},
+  ],'No assessment history yet','Every localhost assessment is saved here once it completes.');
+}
+
 function renderBlue() {
   const d=state.dashboard || {};
   $('blue-mini-stats').innerHTML=[['Security events',d.events,'pulse','blue'],['Detections',d.detections,'shield','violet'],['Open incidents',d.open_incidents,'alert','red']].map(([label,value,iconName,tone])=>miniMetric(label,value,iconName,tone)).join('');
@@ -359,7 +432,7 @@ async function submitScan(event) {
   try {
     const data=await req('/red/assess-local',{method:'POST',body:JSON.stringify({target,ports})});
     state.latestScan={target:data.target,results:data.results,openCount:data.results.filter(x=>x.state==='open').length};
-    await refreshData();
+    await refreshData(); // also reloads the saved assessment history, so the new scan appears automatically
     $('scan-result').textContent=`${data.results.length} TCP ports checked. ${state.latestScan.openCount} open.`;
     showToast('Local assessment completed.','success');
   } catch(error) { $('scan-result').textContent=error.message; showToast(error.message,'error'); }
