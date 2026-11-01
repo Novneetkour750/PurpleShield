@@ -305,15 +305,44 @@ function renderRed() {
   renderRedHistory();
 }
 
-// Assessment History section on the Red Team page. If the page markup has no
-// #red-history-table container, one is created once, below the existing Red Team
-// content, reusing the panel/table classes already used by the findings table.
+// Assessment History section on the Red Team page. The container is found in this order:
+//  1. an existing #red-history-table element in the page markup;
+//  2. an old static placeholder ("Not persisted by this API") already present in the Red
+//     Team page markup, which is replaced by the live history table;
+//  3. otherwise a new section is created below the existing Red Team content, reusing the
+//     panel/table classes already used by the findings table.
+const HISTORY_PLACEHOLDER_TEXT='not persisted by this api';
+function replaceHistoryPlaceholder(view) {
+  const walker=document.createTreeWalker(view,NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node=walker.nextNode())) {
+    if (!node.nodeValue.toLowerCase().includes(HISTORY_PLACEHOLDER_TEXT)) continue;
+    const container=document.createElement('div');
+    container.id='red-history-table';
+    container.style.overflowX='auto';
+    const parent=node.parentElement;
+    const only=el=>el.textContent.trim().length<=HISTORY_PLACEHOLDER_TEXT.length+8 && !el.querySelector('table,form,input,select,button,textarea');
+    // If the phrase sits in a wrapper that holds nothing else (e.g. an empty-state box),
+    // replace that whole wrapper; if it is loose text inside a larger panel, replace only
+    // the text itself so headings and other content stay untouched.
+    if (parent && parent!==view && only(parent)) {
+      let target=parent;
+      while (target.parentElement && target.parentElement!==view && only(target.parentElement)) target=target.parentElement;
+      target.replaceWith(container);
+    } else if (parent) parent.replaceChild(container,node);
+    else continue;
+    return container;
+  }
+  return null;
+}
 function ensureRedHistoryContainer() {
   const existing=$('red-history-table');
   if (existing) return existing;
   const anchor=$('red-findings-table');
   if (!anchor) return null;
   const view=anchor.closest('.page-view') || anchor.parentElement;
+  const replaced=replaceHistoryPlaceholder(view);
+  if (replaced) return replaced;
   const panel=anchor.closest('[class*="panel"],[class*="card"]');
   const section=document.createElement('section');
   section.id='red-history-section';
