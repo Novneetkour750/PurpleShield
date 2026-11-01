@@ -6,6 +6,30 @@
   <meta name="theme-color" content="#0b0d14" />
   <title>PurpleShield · Security Operations</title>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    .admin-user-management { margin-top: 22px; }
+    .user-create-form { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) auto; gap:14px; align-items:end; margin-top:20px; }
+    .user-form-field { display:flex; flex-direction:column; gap:7px; min-width:0; }
+    .user-form-field label { color:var(--muted,#a8adbd); font-size:12px; font-weight:650; }
+    .user-form-field input,.user-form-field select,.user-role-select { width:100%; min-width:0; border:1px solid var(--line,#303442); border-radius:10px; background:var(--surface-2,#151925); color:var(--text,#f5f6fa); padding:11px 12px; font:inherit; }
+    .user-create-submit { min-height:42px; white-space:nowrap; }
+    .user-list-heading { margin-top:26px; }
+    .user-management-table-wrap { width:100%; overflow-x:auto; }
+    .user-management-table { width:100%; min-width:760px; border-collapse:collapse; }
+    .user-management-table th,.user-management-table td { padding:13px 12px; border-bottom:1px solid var(--line,#303442); text-align:left; vertical-align:middle; }
+    .user-management-table th { color:var(--muted,#a8adbd); font-size:11px; text-transform:uppercase; letter-spacing:.07em; }
+    .user-cell { display:flex; align-items:center; gap:10px; min-width:150px; }
+    .user-cell>span:last-child { display:flex; flex-direction:column; gap:3px; }
+    .user-cell small { color:var(--muted,#a8adbd); font-size:11px; }
+    .user-status { display:inline-flex; border-radius:999px; padding:5px 9px; font-size:11px; font-weight:700; }
+    .user-status.is-active { color:#55d6a7; background:rgba(59,199,151,.12); }
+    .user-status.is-inactive { color:#f0a2a2; background:rgba(239,91,91,.12); }
+    .user-role-select { max-width:180px; padding:8px 9px; font-size:12px; }
+    .user-action-button { padding:8px 11px; font-size:12px; }
+    .user-action-button:disabled,.user-role-select:disabled { opacity:.5; cursor:not-allowed; }
+    @media(max-width:900px) { .user-create-form { grid-template-columns:1fr 1fr; } .user-create-submit { width:100%; } }
+    @media(max-width:560px) { .user-create-form { grid-template-columns:1fr; } }
+  </style>
 </head>
 <body>
   <div id="toast-region" class="toast-region" aria-live="polite"></div>
@@ -110,119 +134,34 @@
             <div>
               <div class="eyebrow">AUTHORIZED ASSESSMENT</div>
               <h2>Red Team</h2>
-              <p class="muted">Check TCP ports on this computer only. No exploit attempts or external network
-        traffic.</p>
+              <p class="muted">Check TCP ports on this computer only. No exploit attempts or external network traffic.</p>
             </div>
-            <span class="boundary-badge">
-             <span class="status-dot"></span> LOOPBACK ONLY
-            </span>
+            <span class="boundary-badge"><span class="status-dot"></span> LOOPBACK ONLY</span>
           </div>
-
           <div class="red-layout">
             <div class="red-main-column">
               <article class="panel assessment-panel">
-                <div class="panel-heading">
-                  <div>
-                    <div class="eyebrow">LOCAL PORT ASSESSMENT</div>
-                    <h3>Start an assessment</h3>
-                  </div>
-                  <span class="assessment-protocol">TCP CONNECT</span>
-                </div>
-
+                <div class="panel-heading"><div><div class="eyebrow">LOCAL PORT ASSESSMENT</div><h3>Start an assessment</h3></div><span class="assessment-protocol">TCP CONNECT</span></div>
                 <form id="scan-form" class="assessment-form">
                   <label for="scan-target">Target IP</label>
                   <input id="scan-target" value="127.0.0.1" required maxlength="45" autocomplete="off" />
-
                   <small class="field-help">Only 127.0.0.1 and ::1 are accepted by the backend.</small>
-
-                  <label for="ports">
-                    Ports <span class="label-note">comma separated, up to 20</span>
-                  </label>
+                  <label for="ports">Ports <span class="label-note">comma separated, up to 20</span></label>
                   <input id="ports" value="22,80,443,5000,5500,8000" required autocomplete="off" />
-
                   <small class="field-help">Valid range: 1–65535. Keep the list to ports you are authorized to check.</small>
-
-                  <button id="scan-button" class="button button-primary" type="submit">
-                    <span data-icon="target"></span> Start localhost assessment
-                  </button>
-
+                  <button id="scan-button" class="button button-primary" type="submit"><span data-icon="target"></span> Start localhost assessment</button>
                   <p id="scan-result" class="form-feedback" aria-live="polite"></p>
                 </form>
               </article>
-
-              <article class="panel">
-                <div class="panel-heading">
-                  <div>
-                    <div class="eyebrow">LATEST REQUEST</div>
-                    <h3>Assessment results</h3>
-                  </div>
-                  <span id="scan-result-count" class="panel-count">No assessment yet</span>
-                </div>
-
-                <div id="scan-results-table" class="table-wrap">
-                  <div class="empty-state compact-empty">
-                    <span class="empty-icon">⌁</span>
-                    <b>No assessment in this session</b>
-                    <small>Start a localhost assessment to see open and closed TCP results here.</small>
-                  </div>
-                </div>
-              </article>
+              <article class="panel"><div class="panel-heading"><div><div class="eyebrow">LATEST REQUEST</div><h3>Assessment results</h3></div><span id="scan-result-count" class="panel-count">No assessment yet</span></div><div id="scan-results-table" class="table-wrap"><div class="empty-state compact-empty"><span class="empty-icon">⌁</span><b>No assessment in this session</b><small>Start a localhost assessment to see open and closed TCP results here.</small></div></div></article>
             </div>
-
             <div class="red-side-column">
-              <article class="red-boundary-card">
-                <span class="boundary-shield" data-icon="shield"></span>
-                <div class="eyebrow">ASSESSMENT BOUNDARY</div>
-                <h3>Safe by design</h3>
-                <p>Targets are validated as loopback IP addresses before any TCP connect check runs.</p>
-
-                <div class="boundary-row">
-                  <span>Allowed targets</span>
-                  <b>127.0.0.1 · ::1</b>
-                </div>
-
-                <div class="boundary-row">
-                  <span>Assessment type</span>
-                  <b>TCP connect only</b>
-                </div>
-              </article>
-
-              <article class="panel mini-summary">
-                <div class="eyebrow">PERSISTED FINDINGS</div>
-                <div id="red-finding-total" class="mini-number">—</div>
-                <p class="muted">Open-port findings currently saved in SQLite.</p>
-                <button class="panel-link" data-go="findings">
-                  Review findings <span>→</span>
-                </button>
-              </article>
+              <article class="red-boundary-card"><span class="boundary-shield" data-icon="shield"></span><div class="eyebrow">ASSESSMENT BOUNDARY</div><h3>Safe by design</h3><p>Targets are validated as loopback IP addresses before any TCP connect check runs.</p><div class="boundary-row"><span>Allowed targets</span><b>127.0.0.1 · ::1</b></div><div class="boundary-row"><span>Assessment type</span><b>TCP connect only</b></div></article>
+              <article class="panel mini-summary"><div class="eyebrow">PERSISTED FINDINGS</div><div id="red-finding-total" class="mini-number">—</div><p class="muted">Open-port findings currently saved in SQLite.</p><button class="panel-link" data-go="findings">Review findings <span>→</span></button></article>
             </div>
           </div>
-
-          <!-- Assessment History -->
-          <article class="panel table-panel red-history-panel">
-            <div class="panel-heading">
-              <div>
-                <div class="eyebrow">RED TEAM RECORDS</div>
-                <h3>Assessment History</h3>
-                <p class="muted">Saved localhost assessments from the PurpleShield database.</p>
-              </div>
-              <span id="red-history-count" class="panel-count">Loading…</span>
-            </div>
-
-            <div id="red-history-table" class="table-wrap" style="overflow-x:auto"></div>
-          </article>
-
-          <article class="panel table-panel">
-            <div class="panel-heading">
-              <div>
-                <div class="eyebrow">REVIEW QUEUE</div>
-                <h3>Saved Red Team findings</h3>
-              </div>
-              <button class="text-button" data-go="findings">Manage findings →</button>
-            </div>
-
-            <div id="red-findings-table" class="table-wrap"></div>
-          </article>
+          <article class="panel table-panel red-history-panel"><div class="panel-heading"><div><div class="eyebrow">RED TEAM RECORDS</div><h3>Assessment History</h3><p class="muted">Saved localhost assessments from the PurpleShield database.</p></div><span id="red-history-count" class="panel-count">Loading…</span></div><div id="red-history-table" class="table-wrap" style="overflow-x:auto"></div></article>
+          <article class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">REVIEW QUEUE</div><h3>Saved Red Team findings</h3></div><button class="text-button" data-go="findings">Manage findings →</button></div><div id="red-findings-table" class="table-wrap"></div></article>
         </section>
 
         <section id="page-blue" class="page-view" data-view="blue" hidden>
@@ -265,27 +204,23 @@
 
         <section id="page-settings" class="page-view" data-view="settings" hidden>
           <div class="page-intro"><div><div class="eyebrow">WORKSPACE PREFERENCES</div><h2>Settings</h2><p class="muted">Account and session details available from the current API.</p></div></div>
-          <div class="settings-grid">
-            <article class="panel settings-profile">
-              <div class="eyebrow">CURRENT ACCOUNT</div>
-              <div class="settings-user">
-                <span id="settings-avatar" class="avatar avatar-large">P</span>
-                <div><h3 id="settings-username">—</h3><span id="settings-role" class="role-badge">—</span></div>
-              </div>
-              <div class="settings-row"><span>Authentication</span><b>Bearer session</b></div>
-              <div class="settings-row"><span>Session lifetime</span><b>8 hours · in-memory</b></div>
-              <div class="settings-row"><span>Workspace mode</span><b>Local lab</b></div>
-              <button class="button button-quiet" id="settings-logout"><span data-icon="logout"></span> Log out of this session</button>
-            </article>
-            <article class="panel settings-limits">
-              <div class="eyebrow">AVAILABLE CONTROLS</div>
-              <h3>Backend capabilities</h3>
-              <div class="capability-row"><span class="capability-check">✓</span><span><b>Loopback-only TCP assessment</b><small>127.0.0.1 and ::1</small></span></div>
-              <div class="capability-row"><span class="capability-check">✓</span><span><b>Role-based access control</b><small id="settings-permission-summary">Current role permissions apply</small></span></div>
-              <div class="capability-row unavailable"><span class="capability-dash">—</span><span><b>User management</b><small>No user administration API is available.</small></span></div>
-              <div class="capability-row"><span class="capability-check">✓</span><span><b>Persistent assessment history</b><small>Saved localhost assessment records are available to authorized roles.</small></span></div>
-            </article>
-          </div>
+          <div class="settings-grid"><article class="panel settings-profile"><div class="eyebrow">CURRENT ACCOUNT</div><div class="settings-user"><span id="settings-avatar" class="avatar avatar-large">P</span><div><h3 id="settings-username">—</h3><span id="settings-role" class="role-badge">—</span></div></div><div class="settings-row"><span>Authentication</span><b>Bearer session</b></div><div class="settings-row"><span>Session lifetime</span><b>8 hours · in-memory</b></div><div class="settings-row"><span>Workspace mode</span><b>Local lab</b></div><button class="button button-quiet" id="settings-logout"><span data-icon="logout"></span> Log out of this session</button></article><article class="panel settings-limits"><div class="eyebrow">AVAILABLE CONTROLS</div><h3>Backend capabilities</h3><div class="capability-row"><span class="capability-check">✓</span><span><b>Loopback-only TCP assessment</b><small>127.0.0.1 and ::1</small></span></div><div class="capability-row"><span class="capability-check">✓</span><span><b>Role-based access control</b><small id="settings-permission-summary">Current role permissions apply</small></span></div><div class="capability-row unavailable"><span class="capability-dash">—</span><span><b>User management</b><small>No user administration API is available.</small></span></div><div class="capability-row"><span class="capability-check">✓</span><span><b>Persistent assessment history</b><small>Saved localhost assessment records are available to authorized roles.</small></span></div></article></div>
+          <article id="admin-user-management" class="panel admin-user-management" hidden>
+            <div class="panel-heading">
+              <div><div class="eyebrow">ADMINISTRATION</div><h3>User Management</h3><p class="muted">Create workspace accounts, assign roles and control account access.</p></div>
+              <span class="permission-badge">ADMIN ONLY</span>
+            </div>
+            <form id="user-create-form" class="user-create-form">
+              <div class="user-form-field"><label for="new-user-username">Username</label><input id="new-user-username" name="username" required minlength="3" maxlength="80" pattern="[A-Za-z0-9_.-]+" placeholder="e.g. analyst01" autocomplete="off" /></div>
+              <div class="user-form-field"><label for="new-user-password">Temporary password</label><input id="new-user-password" name="password" type="password" required minlength="10" maxlength="256" placeholder="At least 10 characters" autocomplete="new-password" /></div>
+              <div class="user-form-field"><label for="new-user-role">Role</label><select id="new-user-role" name="role" required><option value="red_operator">Red Operator</option><option value="blue_analyst">Blue Analyst</option><option value="purple_analyst">Purple Analyst</option><option value="admin">Admin</option></select></div>
+              <button class="button button-primary user-create-submit" type="submit">Create user</button>
+            </form>
+            <p id="user-create-feedback" class="form-feedback" aria-live="polite"></p>
+            <div class="panel-heading user-list-heading"><div><div class="eyebrow">WORKSPACE ACCOUNTS</div><h3>Registered users</h3></div><button id="refresh-users-button" type="button" class="button button-quiet">Refresh users</button></div>
+            <div id="admin-users-table" class="table-wrap"><div class="empty-state compact-empty"><b>Loading users…</b></div></div>
+            <p class="field-help">Deactivated accounts cannot sign in. Existing sessions are rejected by the backend on their next request. The last active administrator is protected.</p>
+          </article>
         </section>
       </div>
       <footer class="app-footer"><span>PURPLESHIELD</span><i>·</i> LOCAL-FIRST SECURITY VALIDATION <span class="footer-right">Loopback assessment only</span></footer>
