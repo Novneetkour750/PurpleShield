@@ -1,16 +1,14 @@
- PurpleShield
+PurpleShield
 Local-First Security Validation & Purple Team Assessment Platform
 Assess. Detect. Validate.
 
 PurpleShield is an educational cybersecurity MVP that brings basic Red Team assessment, Blue Team event detection, and Purple Team validation into one web-based workspace. It focuses on safe, localhost-only TCP connectivity checks, explainable event-detection rules, incident and finding management, and validation workflows.
-<p align="center">
-  <a href="https://purpleshield-1.onrender.com"><strong> Live Application</strong></a>
-  &nbsp; · &nbsp;
-  <a href="https://purpleshield.onrender.com/api/health">Backend Health</a>
-  &nbsp; · &nbsp;
-  <a href="https://purpleshield.onrender.com/docs">API Docs</a>
-</p>Deployment note: The frontend and backend are separate Render services. Use the frontend link as the application entry point. The backend root URL is not a homepage; use the health and API documentation endpoints above. Confirm the endpoints are reachable before sharing this README publicly.
-
+Live Project
+Open Live Application ↗
+Backend Technical Endpoints
+- Backend Health Check ↗
+- API Documentation (Swagger) ↗
+The backend root URL is not included as a clickable link.
 Contents
 - Overview
 - Problem and objectives
@@ -68,14 +66,14 @@ The current backend includes simple, explainable rules for:
 - Repeated failed login events.
 - File-integrity-change events.
 These are rule-based demonstrations, not machine-learning detections.
-   Red, Blue and Purple Team modules
+  Red, Blue and Purple Team modules
    Red Team — Local assessment
 The POST /api/red/assess-local endpoint accepts loopback IP addresses (127.0.0.1 or ::1) and performs basic TCP connection checks. Findings are associated with target IP and port. Repeated assessments for the same target/port are deduplicated.
 
 Common port numbers may be assigned probable service hints. These hints are inferred from port numbers; PurpleShield does not perform protocol-level service fingerprinting.
-Blue Team — Event detection and incident review
+ Blue Team — Event detection and incident review
 The Blue Team workflow accepts synthetic security events, stores them, evaluates the implemented rules, and creates detections and incidents. Analysts can review findings and incidents and update supported statuses or relationships.
- Purple Team — Validation
+Purple Team — Validation
 The Purple Team workflow can:
 - Retest an existing Red Team finding using a localhost TCP check.
 - Store a PASS/FAIL validation result linked to the finding.
@@ -91,7 +89,7 @@ Files:
 The agent's default port list is 80,22,5000,8000. A user can provide another comma-separated list with --ports.
 
 Important: the Local Agent must be running on the computer being assessed. A cloud-hosted backend cannot independently access a user's laptop or its localhost ports.
-Architecture
+ Architecture
 ```mermaid
 flowchart TD
     U[User] --> FE[Browser frontend<br/>HTML / CSS / JavaScript]
@@ -236,7 +234,7 @@ py -m http.server 5500 --directory frontend
 Then open http://127.0.0.1:5500 in your browser.
 The frontend's API configuration must point to the backend you are running. Check the API base configuration in frontend/app.js before local use if requests are being sent to the hosted service.
 
-Local Agent setup
+ Local Agent setup
 Keep the backend running. Open another terminal in the backend directory.
 1. Connect the agent and obtain a token
 py connect_agent.py
@@ -281,7 +279,7 @@ The backend also contains startup migration logic for existing databases, includ
 - Local Agent results use a separate agent token.
 - Role checks and audit logging are implemented in the backend.
 Demo credential warning: the current backend seeds a local demo account (admin / Purple@123) when the user table is empty. Change or remove this demo credential before any deployment intended for use beyond a classroom demonstration. Never reuse it for real accounts.
-🧪 Testing
+   Testing
 The supplied ZIP includes backend/requirements-test.txt, but it does not include a backend/tests/ directory or test files. Therefore, this README does not claim a verified automated test-suite result for the uploaded snapshot.
 
 The project documentation describes a unittest command for a test suite, but the referenced test files were not present in the ZIP reviewed. Add the test directory and run the suite before publishing any test-pass badge or test-coverage claim.
