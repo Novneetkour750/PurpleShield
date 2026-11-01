@@ -4,7 +4,7 @@ Assess. Detect. Validate.
 
 PurpleShield is an educational cybersecurity MVP that brings basic Red Team assessment, Blue Team event detection, and Purple Team validation into one web-based workspace. It focuses on safe, localhost-only TCP connectivity checks, explainable event-detection rules, incident and finding management, and validation workflows.
 <p align="center">
-  <a href="https://purpleshield-1.onrender.com"><strong>🚀 Live Application</strong></a>
+  <a href="https://purpleshield-1.onrender.com"><strong> Live Application</strong></a>
   &nbsp; · &nbsp;
   <a href="https://purpleshield.onrender.com/api/health">Backend Health</a>
   &nbsp; · &nbsp;
@@ -68,14 +68,14 @@ The current backend includes simple, explainable rules for:
 - Repeated failed login events.
 - File-integrity-change events.
 These are rule-based demonstrations, not machine-learning detections.
-🔴 🔵 🟣 Red, Blue and Purple Team modules
-🔴 Red Team — Local assessment
+   Red, Blue and Purple Team modules
+   Red Team — Local assessment
 The POST /api/red/assess-local endpoint accepts loopback IP addresses (127.0.0.1 or ::1) and performs basic TCP connection checks. Findings are associated with target IP and port. Repeated assessments for the same target/port are deduplicated.
 
 Common port numbers may be assigned probable service hints. These hints are inferred from port numbers; PurpleShield does not perform protocol-level service fingerprinting.
-🔵 Blue Team — Event detection and incident review
+Blue Team — Event detection and incident review
 The Blue Team workflow accepts synthetic security events, stores them, evaluates the implemented rules, and creates detections and incidents. Analysts can review findings and incidents and update supported statuses or relationships.
-🟣 Purple Team — Validation
+ Purple Team — Validation
 The Purple Team workflow can:
 - Retest an existing Red Team finding using a localhost TCP check.
 - Store a PASS/FAIL validation result linked to the finding.
@@ -312,5 +312,5 @@ Potential next steps:
 - Evaluate additional detection rules using labelled synthetic events.
 - Consider more robust production session and credential-management approaches.
 - Improve Local Agent lifecycle and usability while preserving explicit user consent and localhost-only scope.
-⚖️ Disclaimer
+   Disclaimer
 PurpleShield is intended for education, demonstration, and authorized local testing. Use it only on systems you own or are explicitly authorized to assess. Do not remove the loopback restriction or use the project to test external systems without written authorization.
