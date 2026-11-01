@@ -568,3 +568,175 @@ def audit_records(authorization: str|None=Header(default=None)):
     u=current_user(authorization); require(u,'admin')
     with db() as c: rows=c.execute('SELECT * FROM audit_log ORDER BY id DESC LIMIT 100').fetchall()
     return [dict(r) for r in rows]
+    # ================= LOCAL AGENT MODULE =================
+
+from pydantic import BaseModel, Field
+
+
+class AgentScanBody(BaseModel):
+    device: str = Field(min_length=1, max_length=100)
+    target: str = Field(default="127.0.0.1")
+    results: list[dict] = Field(min_length=1, max_length=100)
+
+
+def init_agent_tables():
+    with db() as c:
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS local_agents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                token_hash TEXT NOT NULL,
+                device TEXT,
+                created_at TEXT NOT NULL,
+                last_seen TEXT
+            )
+        """)
+
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS local_agent_scans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                device TEXT NOT NULL,
+                target TEXT NOT NULL,
+                results TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+
+@app.on_event("startup")
+def startup_agent_tables():
+    init_agent_tables()
+
+
+@app.post("/api/agent/connect")
+def connect_local_agent(authorization: str | None = Header(default=None)):
+    user = current_user(authorization)
+
+    agent_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(agent_token.encode()).hexdigest()
+
+    with db() as c:
+        c.execute("""
+            INSERT INTO local_agents
+                (username, token_hash, device, created_at, last_seen)
+            VALUES (?, ?, NULL, ?, NULL)
+            ON CONFLICT(username) DO UPDATE SET
+                token_hash=excluded.token_hash,
+                device=NULL,
+                created_at=excluded.created_at,
+                last_seen=NULL
+        """, (user["username"], token_hash, now()))
+
+    audit(user["username"], "local_agent_connected", "Agent token generated")
+
+    return {
+        "message": "Local Agent token generated. Save it securely.",
+        "agent_token": agent_token
+    }
+
+
+@app.post("/api/agent/results")
+def receive_agent_results(
+    body: AgentScanBody,
+    x_agent_token: str | None = Header(default=None)
+):
+    if not x_agent_token:
+        raise HTTPException(401, "Agent token required")
+
+    if body.target != "127.0.0.1":
+        raise HTTPException(403, "Only localhost scans are accepted")
+
+    token_hash = hashlib.sha256(x_agent_token.encode()).hexdigest()
+
+    with db() as c:
+        agent = c.execute(
+            "SELECT username FROM local_agents WHERE token_hash=?",
+            (token_hash,)
+        ).fetchone()
+
+        if not agent:
+            raise HTTPException(401, "Invalid or revoked agent token")
+
+        for item in body.results:
+            if not isinstance(item, dict):
+                raise HTTPException(400, "Invalid scan result")
+
+            port = item.get("port")
+            state = item.get("state")
+
+            if type(port) is not int or not 1 <= port <= 65535:
+                raise HTTPException(400, "Invalid port in scan results")
+
+            if state not in ("open", "closed", "filtered", "unknown"):
+                raise HTTPException(400, "Invalid port state")
+
+        username = agent["username"]
+
+        c.execute("""
+            INSERT INTO local_agent_scans
+                (username, device, target, results, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            username,
+            body.device,
+            body.target,
+            json.dumps(body.results),
+            now()
+        ))
+
+        c.execute("""
+            UPDATE local_agents
+            SET device=?, last_seen=?
+            WHERE username=?
+        """, (body.device, now(), username))
+
+    return {
+        "message": "Local scan results received successfully",
+        "device": body.device,
+        "ports_received": len(body.results)
+    }
+
+
+@app.get("/api/agent/results")
+def get_my_agent_results(
+    authorization: str | None = Header(default=None)
+):
+    user = current_user(authorization)
+
+    with db() as c:
+        rows = c.execute("""
+            SELECT id, device, target, results, created_at
+            FROM local_agent_scans
+            WHERE username=?
+            ORDER BY id DESC
+            LIMIT 50
+        """, (user["username"],)).fetchall()
+
+    return [
+        {
+            "scan_id": row["id"],
+            "device": row["device"],
+            "target": row["target"],
+            "results": json.loads(row["results"]),
+            "created_at": row["created_at"]
+        }
+        for row in rows
+    ]
+
+
+@app.post("/api/agent/revoke")
+def revoke_local_agent(
+    authorization: str | None = Header(default=None)
+):
+    user = current_user(authorization)
+
+    with db() as c:
+        c.execute(
+            "DELETE FROM local_agents WHERE username=?",
+            (user["username"],)
+        )
+
+    audit(user["username"], "local_agent_revoked", "Agent token revoked")
+
+    return {"message": "Local Agent access revoked"}
