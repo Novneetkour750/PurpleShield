@@ -205,11 +205,440 @@ flowchart TD
 
 ---
 
-## 8. Project Structure
+8. Project Structure
 
-```text
 PurpleShield-main/
 └── PurpleShield_MVP/
     └── purpleshield/
         |
-        ├── README
+        ├── README.md
+        |
+        ├── backend/
+        |   |
+        |   ├── app/
+        |   |   └── main.py
+        |   |
+        |   ├── agent.py
+        |   ├── connect_agent.py
+        |   ├── requirements.txt
+        |   └── requirements-test.txt
+        |
+        ├── frontend/
+        |   |
+        |   ├── index.html
+        |   ├── app.js
+        |   ├── auth-extras-v2.js
+        |   └── style.css
+        |
+        └── docs/
+            └── architecture.md
+
+Important Files and Their Responsibilities
+
+File
+
+Purpose
+
+backend/app/main.py
+
+Main FastAPI backend, API routes, authentication, database, and application logic.
+
+backend/agent.py
+
+Performs localhost TCP checks and submits assessment results.
+
+backend/connect_agent.py
+
+Connects the Local Agent and requests an agent token.
+
+backend/requirements.txt
+
+Backend dependencies.
+
+backend/requirements-test.txt
+
+Additional testing dependencies.
+
+frontend/index.html
+
+Main frontend structure.
+
+frontend/app.js
+
+Frontend functionality and API communication.
+
+frontend/auth-extras-v2.js
+
+Additional authentication-related frontend functionality.
+
+frontend/style.css
+
+Frontend styling.
+
+docs/architecture.md
+
+Project architecture documentation.
+
+9. Technology Stack
+
+Category
+
+Technology
+
+Programming Language
+
+Python
+
+Backend Framework
+
+FastAPI
+
+Frontend
+
+HTML, CSS, JavaScript
+
+Database
+
+SQLite
+
+API Server
+
+Uvicorn
+
+Data Validation
+
+Pydantic
+
+Local Agent
+
+Python
+
+Version Control
+
+Git and GitHub
+
+Deployment
+
+Render
+
+10. Application Workflow
+
+The user accesses the PurpleShield frontend.
+
+The user authenticates through the backend.
+
+The Red Team module performs localhost TCP assessments.
+
+Assessment findings are stored in the database.
+
+The Blue Team module processes security events.
+
+Detection rules generate detections and incidents.
+
+The Purple Team module retests selected findings.
+
+Validation outcomes are stored for review.
+
+The Local Agent can independently perform local assessments and submit results to the backend.
+
+The dashboard displays the available security information.
+
+11. API Overview
+
+PurpleShield uses REST APIs through its FastAPI backend.
+
+Some of the implemented API endpoints include:
+
+Method
+
+Endpoint
+
+Purpose
+
+GET
+
+/api/health
+
+Backend health check
+
+POST
+
+/api/auth/login
+
+User authentication
+
+POST
+
+/api/auth/logout
+
+User logout
+
+GET
+
+/api/me
+
+Current user information
+
+GET
+
+/api/dashboard
+
+Dashboard data
+
+POST
+
+/api/blue/events
+
+Security event ingestion
+
+GET
+
+/api/blue/findings
+
+Retrieve findings
+
+GET
+
+/api/blue/detections
+
+Retrieve detections
+
+GET
+
+/api/blue/incidents
+
+Retrieve incidents
+
+POST
+
+/api/red/assess-local
+
+Local TCP assessment
+
+GET
+
+/api/red/findings
+
+Retrieve Red Team findings
+
+POST
+
+/api/purple/validate-finding
+
+Validate a selected finding
+
+GET
+
+/api/purple/validations
+
+Retrieve validation history
+
+POST
+
+/api/agent/connect
+
+Connect Local Agent
+
+POST
+
+/api/agent/results
+
+Submit Local Agent results
+
+GET
+
+/api/audit
+
+Retrieve audit records
+
+For complete API details, refer to the Swagger documentation linked in the Live Project section.
+
+12. Installation and Setup
+
+Prerequisites
+
+Python 3.10 or later
+
+Git
+
+Visual Studio Code
+
+Windows PowerShell or terminal
+
+Web browser
+
+Step 1: Clone the Repository
+
+git clone YOUR_GITHUB_REPOSITORY_URL
+
+cd YOUR_REPOSITORY_FOLDER
+
+Step 2: Navigate to Backend
+
+cd backend
+
+Step 3: Create a Virtual Environment
+
+py -m venv .venv
+
+Step 4: Activate Virtual Environment
+
+.\.venv\Scripts\Activate.ps1
+
+Step 5: Install Dependencies
+
+py -m pip install -r requirements.txt
+
+Step 6: Run the Backend
+
+py -m uvicorn app.main:app --reload
+
+Step 7: Run the Frontend
+
+Open another terminal from the project root:
+
+py -m http.server 5500 --directory frontend
+
+Open the frontend in your browser using the local development server address.
+
+Check the API base configuration in frontend/app.js to ensure the frontend points to the backend you intend to use.
+
+Step 8: Run the Local Agent
+
+Open a separate terminal inside the backend directory.
+
+Connect the agent:
+
+py connect_agent.py
+
+Run the agent:
+
+py agent.py
+
+To specify ports:
+
+py agent.py --ports 22,80,443,5000,8000
+
+The agent requires user consent and an agent token before submitting assessment results.
+
+13. Deployment
+
+PurpleShield is deployed using Render with separate frontend and backend services.
+
+Frontend Service
+
+Hosts the application interface.
+
+Provides the main dashboard.
+
+Communicates with the backend through API requests.
+
+Backend Service
+
+Hosts the FastAPI application.
+
+Handles authentication and API operations.
+
+Processes security assessments and events.
+
+Stores application information in SQLite.
+
+Receives Local Agent results.
+
+14. Security Features
+
+Loopback-only TCP assessment restrictions.
+
+Password hashing using PBKDF2-HMAC-SHA256 with per-user salts.
+
+Bearer-session authentication.
+
+Role-based access checks.
+
+Separate Local Agent tokens.
+
+Audit logging for relevant operations.
+
+User consent before Local Agent assessments.
+
+Security Note: The current application includes a seeded demo administrator credential in its initial database setup. Change or remove demo credentials before using the application beyond a controlled demonstration. Never commit real credentials or secret keys to GitHub.
+
+15. Testing and Validation
+
+Development verification has included:
+
+Backend health endpoint checks.
+
+Authentication API checks.
+
+Python syntax compilation.
+
+Local Agent TCP assessment.
+
+Submission of assessment results to the backend.
+
+Dashboard analytics verification.
+
+Finding retesting and validation workflows.
+
+Automated test coverage is not claimed for the supplied project snapshot because a test suite was not included in the reviewed ZIP.
+
+16. Current Limitations
+
+TCP assessments are restricted to loopback targets.
+
+Service names inferred from port numbers are probable hints, not active service fingerprinting.
+
+Detection rules are basic and rule-based.
+
+The Local Agent must be running locally to assess the user's computer.
+
+The cloud backend cannot independently access the user's local machine.
+
+Some advanced incident and finding relationship operations are API-based.
+
+Automated Local Agent startup and fully dashboard-triggered local scanning are future improvements.
+
+17. Future Enhancements
+
+Automated Local Agent startup.
+
+Improved dashboard-triggered local assessment workflow.
+
+Advanced service fingerprinting.
+
+Additional security detection rules.
+
+Enhanced incident investigation.
+
+Improved security analytics and reporting.
+
+Exportable assessment reports.
+
+Expanded automated testing.
+
+Improved authentication and session management.
+
+18. Disclaimer
+
+PurpleShield is developed for educational, demonstration, and authorized local security testing purposes.
+
+Use the platform only on systems you own or have explicit permission to assess. The project is not intended to replace enterprise-grade SIEM, vulnerability management, or professional penetration-testing solutions.
+
+Project Information
+
+Project Name: PurpleShield
+
+Project Domain: Cybersecurity
+
+Project Type: Security Validation and Purple Team Assessment Platform
+
+Backend: Python, FastAPI
+
+Frontend: HTML, CSS, JavaScript
+
+Database: SQLite
+
+Deployment: Render
+
+Version Control: GitHub
