@@ -1,4 +1,4 @@
-const API = 'http://127.0.0.1:8000/api';
+const API = 'https://purpleshield.onrender.com/api';
 const $ = (id) => document.getElementById(id);
 const state = {
   token: localStorage.getItem('ps_token') || '', user: null, role: '', page: 'overview', search: '',
