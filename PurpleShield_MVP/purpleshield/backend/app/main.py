@@ -75,6 +75,8 @@ def init_db():
             tables = {r[0] for r in existing.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             if 'validations' in tables:
                 needs_migration |= 'finding_id' not in {r[1] for r in existing.execute('PRAGMA table_info(validations)')}
+            if 'users' in tables:
+                needs_migration |= 'is_active' not in {r[1] for r in existing.execute('PRAGMA table_info(users)')}
             if 'findings' in tables:
                 duplicates = existing.execute('SELECT 1 FROM findings WHERE target IS NOT NULL AND port IS NOT NULL GROUP BY target,port HAVING COUNT(*)>1 LIMIT 1').fetchone()
                 unique_index = existing.execute("SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_findings_target_port'").fetchone()
@@ -91,7 +93,7 @@ def init_db():
         backup_database()
     with db() as c:
         c.executescript('''
-        CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, username TEXT UNIQUE NOT NULL, salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL, created_at TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, username TEXT UNIQUE NOT NULL, salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL, created_at TEXT NOT NULL, is_active INTEGER NOT NULL DEFAULT 1);
         CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY, event_type TEXT NOT NULL, username TEXT, source_ip TEXT, details TEXT, created_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS detections(id INTEGER PRIMARY KEY, event_id INTEGER, rule_name TEXT, severity TEXT, description TEXT, status TEXT DEFAULT 'Open', created_at TEXT, FOREIGN KEY(event_id) REFERENCES events(id));
         CREATE TABLE IF NOT EXISTS incidents(id INTEGER PRIMARY KEY, title TEXT, severity TEXT, status TEXT DEFAULT 'Open', description TEXT, created_at TEXT);
@@ -110,6 +112,10 @@ def init_db():
         CREATE TABLE IF NOT EXISTS incident_detections(incident_id INTEGER NOT NULL REFERENCES incidents(id) ON DELETE CASCADE, detection_id INTEGER NOT NULL REFERENCES detections(id) ON DELETE CASCADE, created_at TEXT NOT NULL, PRIMARY KEY(incident_id,detection_id));
         CREATE TABLE IF NOT EXISTS incident_findings(incident_id INTEGER NOT NULL REFERENCES incidents(id) ON DELETE CASCADE, finding_id INTEGER NOT NULL REFERENCES findings(id) ON DELETE CASCADE, created_at TEXT NOT NULL, PRIMARY KEY(incident_id,finding_id));
         ''')
+        user_columns = {r['name'] for r in c.execute('PRAGMA table_info(users)')}
+        if 'is_active' not in user_columns:
+            c.execute('ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1')
+
         validation_columns = {r['name'] for r in c.execute('PRAGMA table_info(validations)')}
         if 'finding_id' not in validation_columns:
             c.execute('ALTER TABLE validations ADD COLUMN finding_id INTEGER REFERENCES findings(id)')
@@ -168,17 +174,49 @@ def tcp_port_open(ip, port):
 def audit(username, action, details=''):
     with db() as c: c.execute('INSERT INTO audit_log(username,action,details,created_at) VALUES(?,?,?,?)',(username,action,details,now()))
 def current_user(authorization):
-    if not authorization or not authorization.startswith('Bearer '): raise HTTPException(401, 'Login required')
+    if not authorization or not authorization.startswith('Bearer '):
+        raise HTTPException(401, 'Login required')
     token = authorization[7:]
     session = TOKENS.get(token)
     if not session or session['expires_at'] <= time.time():
         TOKENS.pop(token, None)
         raise HTTPException(401, 'Session expired. Please login again.')
-    return {'username':session['username'],'role':session['role']}
+
+    # Re-check account status and role on every request. This immediately
+    # blocks sessions belonging to deactivated users and applies role changes.
+    with db() as c:
+        account = c.execute(
+            'SELECT role, is_active FROM users WHERE username=?',
+            (session['username'],)
+        ).fetchone()
+
+    if not account or not account['is_active']:
+        for active_token, active_session in list(TOKENS.items()):
+            if active_session['username'] == session['username']:
+                TOKENS.pop(active_token, None)
+        raise HTTPException(401, 'Account is inactive. Contact an administrator.')
+
+    if account['role'] not in ROLES:
+        TOKENS.pop(token, None)
+        raise HTTPException(403, 'Account has an unsupported role')
+
+    session['role'] = account['role']
+    return {'username': session['username'], 'role': account['role']}
 def require(user, *roles):
     if user['role'] not in roles and user['role'] != 'admin': raise HTTPException(403, 'Your role does not have permission for this action')
 
 class LoginBody(BaseModel): username: str = Field(min_length=1, max_length=80); password: str = Field(min_length=1, max_length=256)
+class UserCreateBody(BaseModel):
+    username: str = Field(min_length=3, max_length=80, pattern=r'^[A-Za-z0-9_.-]+$')
+    password: str = Field(min_length=10, max_length=256)
+    role: str = Field(pattern=r'^(admin|red_operator|blue_analyst|purple_analyst)$')
+
+
+class UserUpdateBody(BaseModel):
+    role: str | None = Field(default=None, pattern=r'^(admin|red_operator|blue_analyst|purple_analyst)$')
+    is_active: bool | None = None
+
+
 class EventBody(BaseModel): event_type: str = Field(default='login_failed', max_length=80); username: str = Field(default='unknown', max_length=160); source_ip: str = Field(default='127.0.0.1', max_length=45); details: str = Field(default='', max_length=2000)
 class StatusBody(BaseModel): status: str = Field(pattern='^(Open|In Progress|Fixed|Retest Required|Closed)$')
 class IncidentLinksBody(BaseModel): detection_ids: list[Annotated[int, Field(strict=True, ge=1)]] = Field(default_factory=list, max_length=100); finding_ids: list[Annotated[int, Field(strict=True, ge=1)]] = Field(default_factory=list, max_length=100)
@@ -196,6 +234,8 @@ def health(): return {'status':'ok','service':'PurpleShield API','database':'SQL
 def login(body: LoginBody):
     with db() as c: row = c.execute('SELECT * FROM users WHERE username=?',(body.username,)).fetchone()
     if not row or not hmac.compare_digest(hash_password(body.password,row['salt']), row['password_hash']): raise HTTPException(401,'Invalid username or password')
+    if not row['is_active']:
+        raise HTTPException(403, 'This account is inactive. Contact an administrator.')
     if row['role'] not in ROLES: raise HTTPException(403,'Account has an unsupported role')
     token = secrets.token_urlsafe(32); TOKENS[token] = {'username':row['username'],'role':row['role'],'expires_at':time.time()+TOKEN_TTL_SECONDS}
     audit(row['username'],'login','Successful login')
@@ -425,6 +465,103 @@ def validations(authorization: str|None=Header(default=None)):
     u=current_user(authorization); require(u,'admin','purple_analyst')
     with db() as c: rows=c.execute('SELECT * FROM validations ORDER BY id DESC').fetchall()
     return [dict(r) for r in rows]
+
+@app.get('/api/admin/users')
+def admin_list_users(authorization: str|None=Header(default=None)):
+    u = current_user(authorization)
+    require(u, 'admin')
+    with db() as c:
+        rows = c.execute(
+            "SELECT id, username, role, is_active, created_at FROM users ORDER BY id ASC"
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+@app.post('/api/admin/users', status_code=201)
+def admin_create_user(body: UserCreateBody, authorization: str|None=Header(default=None)):
+    u = current_user(authorization)
+    require(u, 'admin')
+
+    username = body.username.strip()
+    if not username:
+        raise HTTPException(400, 'Username cannot be empty')
+
+    salt = secrets.token_hex(16)
+    password_digest = hash_password(body.password, salt)
+    try:
+        with db() as c:
+            user_id = c.execute(
+                "INSERT INTO users(username, salt, password_hash, role, created_at, is_active) VALUES(?,?,?,?,?,1)",
+                (username, salt, password_digest, body.role, now())
+            ).lastrowid
+    except sqlite3.IntegrityError:
+        raise HTTPException(409, 'A user with this username already exists')
+
+    audit(u['username'], 'user_created', f'user_id={user_id}; username={username}; role={body.role}')
+    return {
+        'message': 'User created successfully',
+        'user': {'id': user_id, 'username': username, 'role': body.role, 'is_active': True}
+    }
+
+
+@app.patch('/api/admin/users/{user_id}')
+def admin_update_user(user_id: int, body: UserUpdateBody, authorization: str|None=Header(default=None)):
+    u = current_user(authorization)
+    require(u, 'admin')
+
+    if body.role is None and body.is_active is None:
+        raise HTTPException(400, 'Provide role or is_active to update')
+
+    with db() as c:
+        target = c.execute(
+            'SELECT id, username, role, is_active FROM users WHERE id=?',
+            (user_id,)
+        ).fetchone()
+        if not target:
+            raise HTTPException(404, 'User not found')
+
+        new_role = body.role if body.role is not None else target['role']
+        new_active = int(body.is_active) if body.is_active is not None else target['is_active']
+
+        if target['username'] == u['username'] and (new_role != 'admin' or not new_active):
+            raise HTTPException(400, 'You cannot change your own account from active admin status')
+
+        remains_active_admin = c.execute(
+            "SELECT COUNT(*) AS total FROM users WHERE role='admin' AND is_active=1 AND id<>?",
+            (user_id,)
+        ).fetchone()['total']
+
+        if target['role'] == 'admin' and target['is_active'] and (new_role != 'admin' or not new_active) and remains_active_admin == 0:
+            raise HTTPException(400, 'The last active administrator cannot be demoted or deactivated')
+
+        c.execute(
+            'UPDATE users SET role=?, is_active=? WHERE id=?',
+            (new_role, new_active, user_id)
+        )
+
+    if new_role != target['role']:
+        audit(u['username'], 'user_role_changed', f'user_id={user_id}; username={target["username"]}; {target["role"]}->{new_role}')
+    if new_active != target['is_active']:
+        action = 'user_activated' if new_active else 'user_deactivated'
+        audit(u['username'], action, f'user_id={user_id}; username={target["username"]}')
+
+    # Tokens are checked against the database on every request. Remove them
+    # immediately as an extra safeguard when an account is deactivated.
+    if not new_active:
+        for active_token, active_session in list(TOKENS.items()):
+            if active_session['username'] == target['username']:
+                TOKENS.pop(active_token, None)
+
+    return {
+        'message': 'User updated successfully',
+        'user': {
+            'id': user_id,
+            'username': target['username'],
+            'role': new_role,
+            'is_active': bool(new_active)
+        }
+    }
+
 
 @app.get('/api/audit')
 def audit_records(authorization: str|None=Header(default=None)):
