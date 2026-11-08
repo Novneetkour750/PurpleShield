@@ -10,7 +10,7 @@ import urllib.request
 from datetime import datetime
 
 
-API_URL = "https://purpleshield.onrender.com/api/agent/results"
+API_URL = "https://purpleshield-api-2026.onrender.com/api/agent/results"
 
 
 def scan_local_ports(ports):
