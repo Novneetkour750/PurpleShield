@@ -3,7 +3,7 @@ import getpass
 import urllib.request
 import urllib.error
 
-BASE_URL = "https://purpleshield.onrender.com"
+BASE_URL = "https://purpleshield-api-2026.onrender.com"
 
 username = input("PurpleShield username: ")
 password = getpass.getpass("PurpleShield password: ")
