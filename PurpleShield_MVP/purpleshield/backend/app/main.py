@@ -691,6 +691,25 @@ def receive_agent_results(
             WHERE username=?
         """, (body.device, now(), username))
 
+        # Open ports reported by a Local Agent become findings, so Red Team,
+        # Findings and Blue Team all see them. Target is per user+device.
+        agent_target = f"{username}@{body.device}"[:120]
+        for item in body.results:
+            if item.get("state") != "open":
+                continue
+            port = item["port"]
+            hint = PROBABLE_PORT_SERVICES.get(port)
+            hint_text = (f" Probable service hint: {hint}; this is inferred from the port number and is not a protocol-confirmed service."
+                         if hint else " No common service hint is available for this port.")
+            c.execute("""INSERT INTO findings(target,port,service,severity,description,status,created_at)
+                VALUES(?,?,?,?,?,?,?)
+                ON CONFLICT(target,port) DO UPDATE SET
+                  service=excluded.service, severity=excluded.severity,
+                  description=excluded.description, created_at=excluded.created_at""",
+                (agent_target, port, probable_service(port), "Info",
+                 "Open TCP port reported by Local Agent." + hint_text + " Review whether this service is required.",
+                 "Open", now()))
+
     return {
         "message": "Local scan results received successfully",
         "device": body.device,
