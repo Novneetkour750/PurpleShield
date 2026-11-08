@@ -1,4 +1,4 @@
-const API = 'https://purpleshield.onrender.com/api';
+ const API = 'https://purpleshield-api-2026.onrender.com/api';
 const $ = (id) => document.getElementById(id);
 
 const state = {
